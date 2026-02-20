@@ -9,7 +9,7 @@ public class PgmanagementApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(PgmanagementApplication.class, args);
 		
-		System.out.println("MY APPLICATION STARTED......");
+		System.out.println("MY APPLICATION STARTED....");
 	}
 
 }
