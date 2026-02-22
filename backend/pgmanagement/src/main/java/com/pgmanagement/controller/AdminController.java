@@ -1,5 +1,7 @@
 package com.pgmanagement.controller;
 
+import com.pgmanagement.config.PaginationProperties;
+import com.pgmanagement.responseDtos.AdminUserDashboardResponse;
 import com.pgmanagement.responseDtos.UserResponseDto;
 import com.pgmanagement.service.UserService;
 
@@ -16,10 +18,14 @@ public class AdminController {
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     private final UserService userService;
+    
+    private final PaginationProperties paginationProperties;
 
-    public AdminController(UserService userService) {
-        this.userService = userService;
-    }
+    public AdminController(UserService userService,
+            PaginationProperties paginationProperties) {
+this.userService = userService;
+this.paginationProperties = paginationProperties;
+}
 
     /**
      * ✅ Approve a pending owner registration
@@ -39,6 +45,24 @@ public class AdminController {
         return new ResponseEntity<>(approvedOwner, HttpStatus.OK);
     }
 
-    // ✅ Optional: You can add more admin endpoints here like
-    // get all pending owners, suspend user, delete user, etc.
+    
+    
+    @GetMapping("/users")
+    public ResponseEntity<AdminUserDashboardResponse> getAllUsersWithDashboard(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+
+        int finalPage = (page != null) ? page : paginationProperties.getDefaultPage();
+        int finalSize = (size != null) ? size : paginationProperties.getDefaultSize();
+
+        // Prevent large data attacks
+        if (finalSize > paginationProperties.getMaxSize()) {
+            finalSize = paginationProperties.getMaxSize();
+        }
+
+        AdminUserDashboardResponse response =
+                userService.getAllUsersWithDashboard(finalPage, finalSize);
+
+        return ResponseEntity.ok(response);
+    }
 }

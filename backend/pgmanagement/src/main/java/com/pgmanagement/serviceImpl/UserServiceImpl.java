@@ -1,7 +1,17 @@
 package com.pgmanagement.serviceImpl;
 
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +24,7 @@ import com.pgmanagement.exception.DuplicateResourceException;
 import com.pgmanagement.mapper.UserMapper;
 import com.pgmanagement.repository.UserRepository;
 import com.pgmanagement.requestDtos.UserRequestDto;
+import com.pgmanagement.responseDtos.AdminUserDashboardResponse;
 import com.pgmanagement.responseDtos.UserResponseDto;
 import com.pgmanagement.service.UserService;
 
@@ -92,5 +103,70 @@ public class UserServiceImpl implements UserService {
         User savedOwner = userRepository.save(owner);
 
         return UserMapper.toResponseDto(savedOwner);
+    }
+    
+    
+    @Override
+    public AdminUserDashboardResponse getAllUsersWithDashboard(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        // ✅ Fetch users with business-priority sorting
+        Page<User> userPage = userRepository.findAllOrderByStatusPriority(pageable);
+
+        List<UserResponseDto> userDtos = new ArrayList<>();
+
+        for (User user : userPage.getContent()) {
+            userDtos.add(UserMapper.toResponseDto(user));
+        }
+
+        // ✅ Role Counts
+        List<Object[]> roleCountList = userRepository.countUsersByRole();
+        Map<String, Long> roleCounts = new HashMap<>();
+
+        for (Object[] obj : roleCountList) {
+            roleCounts.put(obj[0].toString(), (Long) obj[1]);
+        }
+
+        // ✅ Status Counts
+        List<Object[]> statusCountList = userRepository.countUsersByStatus();
+
+        long activeCount = 0;
+        long pendingCount = 0;
+        long suspendedCount = 0;
+        long deletedCount = 0;
+
+        for (Object[] obj : statusCountList) {
+
+            String status = obj[0].toString();
+            Long count = (Long) obj[1];
+
+            if (status.equals("ACTIVE")) {
+                activeCount = count;
+            } else if (status.equals("PENDING_APPROVAL")) {
+                pendingCount = count;
+            } else if (status.equals("SUSPENDED")) {
+                suspendedCount = count;
+            } else if (status.equals("DELETED")) {
+                deletedCount = count;
+            }
+        }
+
+        // ✅ Build response
+        AdminUserDashboardResponse response = new AdminUserDashboardResponse();
+
+        response.setUsers(userDtos);
+        response.setTotalUsers(userPage.getTotalElements());
+        response.setTotalPages(userPage.getTotalPages());
+        response.setCurrentPage(userPage.getNumber());
+        response.setPageSize(userPage.getSize());
+        response.setRoleCounts(roleCounts);
+
+        response.setActiveUsers(activeCount);
+        response.setPendingUsers(pendingCount);
+        response.setSuspendedUsers(suspendedCount);
+        response.setDeletedUsers(deletedCount);
+
+        return response;
     }
 }
